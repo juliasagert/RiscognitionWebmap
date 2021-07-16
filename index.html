@@ -712,11 +712,12 @@ function openJsonForm() {
 function showJson() {
 	var input = document.getElementById("geojson").value;
 	input = JSON.parse(input);
-	map.addSource('geojson',{
-		type: 'geojson',
-		data: input
-	});
-	map.addLayer({
+	if (!map.getSource('geojson')) {
+		map.addSource('geojson',{
+			type: 'geojson',
+			data: input
+		});
+		map.addLayer({
 		id: 'polygon',
 		type: 'fill',
 		source: 'geojson',
@@ -760,34 +761,39 @@ function showJson() {
 		},
 		filter: ['==', '$type', 'LineString']
 	});
-
-	var jsonCoords = input.features[0].geometry.coordinates;
-	var lats = [];  var lngs = [];
-	console.log(jsonCoords[0])
-	if (jsonCoords[0][0] instanceof Array) {
-		console.log("IS POLYGON")
-		for (var i = 0; i < jsonCoords[0].length; i++)  {
-			lats.push(jsonCoords[0][i][1]);
-			lngs.push(jsonCoords[0][i][0]);
-		}
-	} else if (typeof jsonCoords[0] == "number") {
-		console.log("IS STRING")
-
-			lats.push(jsonCoords[1]);
-			lngs.push(jsonCoords[0]);
 	} else {
-		for (var i = 0; i < jsonCoords[0].length; i++)  {
-			lats.push(jsonCoords[i][1]);
-			lngs.push(jsonCoords[i][0]);
-		}
+		map.getSource('geojson').setData(input)
 	}
-	minlat = Math.min.apply(null, lats),
-	maxlat = Math.max.apply(null, lats);
-	minlng = Math.min.apply(null, lngs),
-	maxlng = Math.max.apply(null, lngs);
+	
 
-	bounds = [[minlng,minlat],[maxlng,maxlat]];
-	map.fitBounds(bounds, {padding: 50, maxZoom:5});
+	console.log()
+	// var jsonCoords = input.features[0].geometry.coordinates;
+	// var lats = [];  var lngs = [];
+	// console.log(jsonCoords[0])
+	// if (jsonCoords[0][0] instanceof Array) {
+	// 	console.log("IS POLYGON")
+	// 	for (var i = 0; i < jsonCoords[0].length; i++)  {
+	// 		lats.push(jsonCoords[0][i][1]);
+	// 		lngs.push(jsonCoords[0][i][0]);
+	// 	}
+	// } else if (typeof jsonCoords[0] == "number") {
+	// 	console.log("IS STRING")
+
+	// 		lats.push(jsonCoords[1]);
+	// 		lngs.push(jsonCoords[0]);
+	// } else {
+	// 	for (var i = 0; i < jsonCoords[0].length; i++)  {
+	// 		lats.push(jsonCoords[i][1]);
+	// 		lngs.push(jsonCoords[i][0]);
+	// 	}
+	// }
+	// minlat = Math.min.apply(null, lats),
+	// maxlat = Math.max.apply(null, lats);
+	// minlng = Math.min.apply(null, lngs),
+	// maxlng = Math.max.apply(null, lngs);
+
+	// bounds = [[minlng,minlat],[maxlng,maxlat]];
+	map.fitBounds(turf.bbox(input), {padding: 50, maxZoom:5});
 }
 
 function closeJsonForm() {
