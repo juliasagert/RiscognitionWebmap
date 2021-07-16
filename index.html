@@ -100,7 +100,6 @@ body { margin: 0; padding: 0; }
 
 <script>
 var isocodes = [];
-//console.log(isocodes);
 mapboxgl.accessToken = 'pk.eyJ1IjoianVsaXNhZ2VydCIsImEiOiJja2FudG42emUxZHI2MnhvNnpmczFkNngwIn0.tiEAXkrCtoHFBI3wJ5A4zg';
 var map = new mapboxgl.Map({
 container: 'map',
@@ -322,14 +321,15 @@ function loadHotspots1() {
 
 	var url = "https://api.riscognition.io/hotspots?limit=0&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc&bbox=" + bounds;
 
-	map.addSource('hotspotsbbox', {
+	if (!map.getSource.getElementById("hotspotsbbox")) {
+		map.addSource('hotspotsbbox', {
 		type: 'geojson',
 		data: url,
 		cluster: true,
 		clusterMaxZoom: 14,
 		clusterRadius: 40
-	});
-	map.addLayer({
+		});
+		map.addLayer({
 		id: 'clusters',
 		type: 'circle',
 		source: 'hotspotsbbox',
@@ -403,11 +403,13 @@ function loadHotspots1() {
 			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
 		}
 
+		let landcover = clc ? '<br><strong>Landcover: </strong>' + clc : ""
+
 		new mapboxgl.Popup()
 			.setLngLat(coordinates)
 			.setHTML('<strong>Country: </strong>' + country +
 			'<br><strong>Region: </strong>' + region +
-			'<br><strong>Landcover: </strong>' + clc +
+			landcover +
 			'<br><strong>Acquired: </strong>' + acquired +
 			'<br><strong>Fire Radiative Power: </strong>' + frp +
 			'<br><strong>Satellite & sensor: </strong>' + satellite +
@@ -415,6 +417,9 @@ function loadHotspots1() {
 			'<br><strong>Accuracy: </strong>' + accuracy)
 			.addTo(map);
 	});
+	} else {
+		map.getSource('hotspotsbbox').setData(url)
+	}
 	map.on('mouseenter', 'clusters', function () {
 		map.getCanvas().style.cursor = 'pointer';
 	});
@@ -546,11 +551,13 @@ function loadHotspots2() {
 			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
 		}
 
+		let landcover = clc ? '<br><strong>Landcover: </strong>' + clc : ""
+
 		new mapboxgl.Popup()
 			.setLngLat(coordinates)
 			.setHTML('<strong>Country: </strong>' + country +
 			'<br><strong>Region: </strong>' + region +
-			'<br><strong>Landcover: </strong>' + clc +
+			landcover +
 			'<br><strong>Acquired: </strong>' + acquired +
 			'<br><strong>Fire Radiative Power: </strong>' + frp +
 			'<br><strong>Satellite & sensor: </strong>' + satellite +
@@ -614,7 +621,8 @@ function coordinates() {
     var bounds = [[lng1, lat1], [lng2, lat2]];
 	map.fitBounds(bounds, {padding: 50});
 
-	map.addSource('bboxRect', {
+	if (!map.getSource('bboxRect')) {
+		map.addSource('bboxRect', {
 		type: 'geojson',
 		data: {
 			type: 'Feature',
@@ -642,6 +650,25 @@ function coordinates() {
 			'line-width': 3
 		}
 	});
+	} else {
+		map.getSource('bboxRect').setData({
+			type: 'Feature',
+			properties: {},
+			geometry: {
+				type: 'Polygon',
+				coordinates: [
+					[
+						[lng1, lat1],
+						[lng2, lat1],
+						[lng2, lat2],
+						[lng1, lat2],
+						[lng1, lat1]
+					]
+				]
+			}
+		})
+	}
+
 }
 
 function closeBboxForm() {
@@ -765,8 +792,6 @@ function showJson() {
 		map.getSource('geojson').setData(input)
 	}
 	
-
-	console.log()
 	// var jsonCoords = input.features[0].geometry.coordinates;
 	// var lats = [];  var lngs = [];
 	// console.log(jsonCoords[0])
@@ -890,97 +915,9 @@ function openFilterForm() {
 	options+= '<option value="" label="Select Country"/>'
 	for(var i = 0; i < isocodes.length; i++) {
   		options += '<option value="' + isocodes[i]["alpha-2"] + '" label="' + isocodes[i]["name"] +'" />';
-}
-document.getElementById('countryselect').innerHTML = options;
-}
-
-//var ISOcodes; 
-const url = 'https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/slim-2/slim-2.json'
-async function getJSON() {
-	var ISOcodes;
-	var response = await fetch(url);
-	ISOcodes = await response.json();
-		// .then(response => response.json())
-		// .then(data => ISOcodes = data)
-		// .then(() => callback(ISOcodes));
-	//.then(() => console.log(ISOcodes));
-//console.log(ISOcodes);
-}
-getJSON()
-
-function findWithAttr(array, attr, value) {
-	for(var i = 0; i < array.length; i += 1) {
-		if(array[i][attr] === value) {
-			return i;
-		}
 	}
-	return -1;
-	var ID = findWithAttr(obj, 'name', country);
-	var entry = obj[ID];
-	var code = entry['alpha-2'];
+	document.getElementById('countryselect').innerHTML = options;
 }
-
-	// function getKeyByValue(object, value) {
-  	// 	return Object.keys(object).find(key => object[key] === value);
-	// }
-
-
-	// let search = document.getElementById("country");
-	// window.search = search;
-	// search.id = "search";
-	// search.autocomplete = "off";
-	// search.setAttribute("onkeyup", "searchDB(this);");
-
-	// function searchDB(elem) {
-	// 	let selector = document.getElementById("selector");
-	// 	if (elem.value.trim() !== "") {
-    //     	elem.classList.add("dropdown");
-    //     	if (selector == null) {
-	// 			selector = document.createElement("div");
-	// 			selector.id = "selector";
-	// 			elem.parentNode.appendChild(selector);
-	// 			selector.style.left = elem.getBoundingClientRect().left + "px";
-	// 			selector.style.top = elem.getBoundingClientRect().bottom + "px";
-	// 			selector.style.width = elem.getBoundingClientRect().width + "px";
-    //     	}
-	// 		selector.innerHTML = "";
-	// 		let empty = true;
-	// 		for (let item in isocodes) {
-	// 			let str = item["name"];//[item.toLowerCase(), isocodes[item][0].toLowerCase()].join();
-	// 			if (str.indexOf(elem.value) !== -1) {
-	// 				let opt = document.createElement("button");
-	// 				opt.setAttribute("onclick","insertValue(this);")
-	// 				opt.innerHTML = isocodes[item][0];
-	// 				selector.appendChild(opt);
-	// 				empty = false;
-	// 			}
-	// 		}
-	// 		if (empty == true) {
-	// 			let opt = document.createElement("button");
-	// 			opt.disabled = true;
-	// 			opt.innerHTML = "No results";
-	// 			selector.appendChild(opt);
-	// 		}
-	// 	}
-	// 	else {
-	// 		if (selector !== null) {
-    //         	selector.parentNode.removeChild(selector);
-    //         	elem.classList.remove("dropdown");
-    //     	}
-	// 	}
-	// }
-	// function insertValue(elem) {
-	// 	window.search.classList.remove("dropdown");
-	// 	window.search.value = elem.innerHTML;
-	// 	elem.parentNode.parentNode.removeChild(elem.parentNode);
-	// 	console.log(elem.innerHTML);
-	// 	console.log(db);
-	// 	console.log(getKeyByValue(db, "Andorra"));
-	// }
-
-// var countriesFilter = new Array();
-// var options = '';
-
 
 function unixDateStamp(date) {
 	var unix = new Date(date).getTime()/1000;
@@ -1007,7 +944,8 @@ function loadFilter() {
 
 	var url = "https://api.riscognition.io/hotspots?" + "limit=" + count + "&country=" + country + "&start=" + startDate + "&end=" + endDate + "&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc";
 	
-	map.addSource('hotspotsfilter', {
+	if (!map.getSource('hotspotsfilter')) {
+		map.addSource('hotspotsfilter', {
 		type: 'geojson',
 		data: url,
 		cluster: true,
@@ -1055,6 +993,10 @@ function loadFilter() {
 			'circle-stroke-color': 'white'
 		}
 	});
+	} else {
+		map.getSource('hotspotsfilter').setData(url)
+	}
+	
 	if (frp){
 		map.setFilter('unclustered-point-filter', ['>',['get', 'frp'],frp]);
 		map.setFilter('clusters-filter', ['>',['get', 'frp'],frp]);
