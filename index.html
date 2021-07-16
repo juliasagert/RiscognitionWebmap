@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Riscognition Hotspots</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v2.3.1/mapbox-gl.css">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css" type="text/css">
+<link rel="stylesheet" href="css/title.css">
+<link rel="stylesheet" href="css/bbox-request.css">
+<link rel="stylesheet" href="css/draw-polygon.css">
+<link rel="stylesheet" href="css/popup.css">
+<link rel="stylesheet" href="css/menu.css">
+<link rel="stylesheet" href="css/wms.css">
+<link rel="stylesheet" href="css/geojson.css">
+<link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/slider.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.8/css/all.css" rel="stylesheet">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.2/mapbox-gl-draw.css" type="text/css">
+
+<!--scripts-->
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.3.1/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.2/mapbox-gl-draw.js"></script>
+<script type="module">
+	import {isocodes} from '/js/ISOcodes.js';
+	window.isocodes=isocodes;
+</script>
+
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<nav id="menu"></nav>
+<nav id="wms"></nav>
+<div id="map"></div>
+<div class="title">
+	<h1>Hotspots</h1>
+</div>
+<button class="bbox-button" onclick="openBboxForm()" title="Find bounding box"></button>
+<div class="bbox-form" id="bboxForm">
+    <form action="/action_page.php" class="bbox-form-container">
+        <input type="text" id="bbox" name="bbox" onfocus="this.value=''" placeholder="Enter your bbox coordinates"/>
+        <button type="button" class="searchBbox" onclick="coordinates()">Zoom to bbox</button>
+		<button type="button" class="load-hotspots" onclick="loadHotspots1()">Load hotspots</button>
+        <button type="button" class="close" onclick="closeBboxForm()">Close</button>
+    </form>
+</div>
+<button class="draw-button" id="drawPolygon" onclick="drawPolygon()" title="Draw polygon"></button>
+<div class="draw-form" id="drawForm">
+	<form action="/action_page.php" class="draw-form-container">
+		<textarea id='drawnBbox' rows='2' cols='47' style='font-family: Calibri Light, sans-serif; font-size: 13px; width: 97%;'>Coords</textarea>
+		<button type="button" class="copy" onclick="copyBbox()">Copy</button>
+		<button type="button" class="load-hotspots" onclick="loadHotspots2()">Load hotspots</button>
+        <button type="button" class="close" onclick="closeDrawForm()">Close</button>
+    </form>
+</div>
+<button class="json-button" id="showJson" onclick="openJsonForm()" title="Show GeoJSON on map"></button>
+<div class="json-form" id="jsonForm">
+	<form action="/action_page.php" class="json-form-container">
+		<input type="text" id="geojson" name="geojson" onfocus="this.value=''" placeholder="Enter your GeoJSON"/>
+		<button type="button" class="show-json" onclick="showJson()">Show GeoJSON on map</button>
+		<button type="button" class="close" onclick="closeJsonForm()">Close</button>
+	</form>
+</div>
+
+<button class="json-draw-button" id="drawJson" onclick="drawJson()" title="Draw point, line or polygon and convert to GeoJSON"></button>
+<button class="draw-point-button" id="drawPoint" onclick="drawPoint()" title="Draw point" style="display: none;"></button>
+<button class="draw-line-button" id="drawLine" onclick="drawLine()" title="Draw linestring" style="display: none;"></button>
+<button class="draw-polygon-button" id="drawPolygonJson" onclick="drawPolygonJson()" title="Draw polygon" style="display: none;"></button>
+<div class="json-draw-form" id="jsonDrawForm">
+	<form action="/action_page.php" class="json-draw-form-container">
+		<textarea id="drawnGeojson" rows='6' cols='47' style='font-family: Calibri Light, sans-serif; font-size: 13px; width: 97%;'>GeoJSON</textarea>
+		<button type="button" class="copy" onclick="copyJson()">Copy</button>
+		<button type="button" class="close" onclick="closeJsonDrawForm()">Close</button>
+	</form>
+</div>
+<button type="button" id="delete" class="delete-hotspots" onclick="deleteHotspots()" style="display: none;">remove hotspots</button>
+<button class="filter-button" id="filter" onclick="openFilterForm()" title="Filter hotspots"></button>
+<div class="filterForm" id="filterForm">
+	<form action="/action_page.php" class="filter-container">
+		<p>Filter hotspot request</p>
+		<input type="text" id="country" name="country" list="countries" onfocus="this.value=''" placeholder="Select country"/>
+		<!-- <datalist id="countries" class="datalist"></datalist> -->
+		<input type="text" id="startDate" name="startDate" onfocus="this.value=''" placeholder="Select start date"/>
+		<input type="text" id="endDate" name="endDate" onfocus="this.value=''" placeholder="Select end date"/>
+		<input type="text" id="count" name="count" onfocus="this.value=''" placeholder="Choose limit"/>
+		<input type="text" id="frp" name="frp" onfocus="this.value=''" placeholder="Choose minimum FRP"/>
+		<input type="text" id="sensor" name="sensor" onfocus="this.value=''" placeholder="Select sensor"/>
+		<button type="button" class="load-filter" onclick="loadFilter()">Load hotspots</button>
+		<button type="button" class="close-filter" onclick="closeFilter()">Close</button>
+	</form>
+</div>
+
+<script>
+var isocodes = [];
+//console.log(isocodes);
+mapboxgl.accessToken = 'pk.eyJ1IjoianVsaXNhZ2VydCIsImEiOiJja2FudG42emUxZHI2MnhvNnpmczFkNngwIn0.tiEAXkrCtoHFBI3wJ5A4zg';
+var map = new mapboxgl.Map({
+container: 'map',
+style: 'mapbox://styles/mapbox/streets-v11',
+center: [40, 40],
+zoom: 2,
+});
+
+// add Copernicus forest WMS
+map.on('load', function(){
+	map.addLayer({
+		id: 'forest',
+		type: 'raster',
+		source: {
+			type: 'raster',
+			//tiles: ['https://neo.sci.gsfc.nasa.gov/wms/wms?service=wms&version=1.3.0&request=GetMap&bbox=-90,-180,90,180&format=image/png&transparent=true&crs=CRS:84&width=256&height=256&styles=&layers=MOD_LSTD_CLIM_M'],
+			tiles: ['https://image.discomap.eea.europa.eu/arcgis/services/GioLandPublic/HRL_ForestType_2018/ImageServer/WMSServer?service=wms&version=1.3.0&request=GetMap&bbox={bbox-epsg-3857}&format=image/png&transparent=true&crs=EPSG:3857&width=256&height=256&styles=&layers=HRL_ForestType_2018:FTY_MosaicSymbology'],
+			tileSize: 256
+		},
+		layout: {"visibility": "none"},
+		paint: {}
+	});
+});
+
+// add GeoJSON
+function toDate(timestamp) {
+    var unix = timestamp;
+	var date = new Date(unix*1000);
+	var humanDate = date.toLocaleString();
+    return(humanDate)
+}
+
+map.on('load', function() {
+	map.addSource('hotspots', {
+		type: 'geojson',
+		data: "https://api.riscognition.io/hotspots?limit=200&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc",
+		cluster: true,
+		clusterMaxZoom: 14,
+		clusterRadius: 40
+	});
+	map.addLayer({
+		id: 'recent hotspots',
+		type: 'circle',
+		source: 'hotspots',
+		filter: ['has', 'point_count'],
+		layout: {'visibility': 'visible'},
+		paint: {
+			'circle-radius': [
+				'step',
+				['get', 'point_count'],
+				10,
+				5,
+				15,
+				60,
+				20
+			],
+			'circle-stroke-width': 1,
+			'circle-color': [
+				'step',
+				['get', 'point_count'],
+				'#DE7615',
+				5,
+				'#DE3815',
+				60,
+				'#88200A'
+			],
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.addLayer({
+		id: 'unclustered-point',
+		type: 'circle',
+		source: 'hotspots',
+		filter: ['!', ['has', 'point_count']],
+		layout: {'visibility': 'visible'},
+		paint: {
+			'circle-color': '#FFC300',
+			'circle-radius': 5,
+			'circle-stroke-width': 1,
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.on('click', 'recent hotspots', function (e) {
+		var features = map.queryRenderedFeatures(e.point, {
+			layers: ['recent hotspots']
+		});
+		var clusterId = features[0].properties.cluster_id;
+		map.getSource('hotspots').getClusterExpansionZoom(
+			clusterId, function (err, zoom) {
+				if (err) return;
+
+				map.easeTo({
+					center: features[0].geometry.coordinates,
+					zoom:zoom
+				});
+			}
+		);
+	});
+	map.on('click', 'unclustered-point', function (e) {
+		map.easeTo({
+			center: e.features[0].geometry.coordinates
+		});
+		var coordinates = e.features[0].geometry.coordinates.slice();
+		var country = e.features[0].properties['country_name'];
+		var region = e.features[0].properties['region_name'];
+		var clc = e.features[0].properties['clc_label'];
+		var acquired = toDate(e.features[0].properties['acquired']);
+		var frp = e.features[0].properties['frp'];
+		var satellite = e.features[0].properties['satellite'] + ' ' + e.features[0].properties['sensor'];
+		var confidence = e.features[0].properties['confidence'];
+		var accuracy = e.features[0].properties['accuracy'];
+		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+		}
+
+		new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML('<strong>Country: </strong>' + country +
+			'<br><strong>Region: </strong>' + region +
+			'<br><strong>Landcover: </strong>' + clc +
+			'<br><strong>Acquired: </strong>' + acquired +
+			'<br><strong>Fire Radiative Power: </strong>' + frp +
+			'<br><strong>Satellite & sensor: </strong>' + satellite +
+			'<br><strong>Confidence: </strong>' + confidence +
+			'<br><strong>Accuracy: </strong>' + accuracy)
+			.addTo(map);
+	});
+	map.on('mouseenter', 'recent hotspots', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseenter', 'unclustered-point', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseleave', 'recent hotspots', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	map.on('mouseleave', 'unclustered-point', function () {
+		map.getCanvas().style.cursor = '';
+	});
+});
+
+// layer control recent hotspots
+map.on('idle', function() {
+	if (map.getLayer('recent hotspots')) {
+		var toggleableLayerIds = ['recent hotspots'];
+		for (var i = 0; i < toggleableLayerIds.length; i++) {
+			var id = toggleableLayerIds[i];
+			if (!document.getElementById(id)) {
+				var link = document.createElement('a');
+				link.id = id;
+				link.href = '#';
+				link.textContent = id;
+				link.className = 'active';
+				link.onclick = function(e) {
+					var clickedLayer = this.textContent;
+					e.preventDefault();
+					e.stopPropagation();
+					var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+					if (visibility === 'visible') {
+						map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+						this.className = '';
+						map.setLayoutProperty('unclustered-point', 'visibility', 'none');
+					} else {
+						this.className = 'active';
+						map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+						map.setLayoutProperty('unclustered-point', 'visibility', 'visible');
+					}
+				};
+				var layers = document.getElementById('menu');
+				layers.appendChild(link);
+			}
+		}
+	}
+});
+
+// layer control WMS
+map.on('idle', function() {
+	if (map.getLayer('forest')) {
+		var toggleableLayerIds = ['forest'];
+		for (var i = 0; i < toggleableLayerIds.length; i++) {
+			var id = toggleableLayerIds[i];
+			if (!document.getElementById(id)) {
+				var link = document.createElement('a');
+				link.id = id;
+				link.href = '#';
+				link.textContent = id;
+				link.className = 'active';
+				link.onclick = function(e) {
+					var clickedLayer = this.textContent;
+					e.preventDefault();
+					e.stopPropagation();
+					var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+					if (visibility === 'visible') {
+						map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+						this.className = '';
+					} else {
+						this.className = 'active';
+						map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+					}
+				};
+				var layers = document.getElementById('wms');
+				layers.appendChild(link);
+			}
+		}
+	}
+});
+
+// bbox hotspot request - bbox request
+function loadHotspots1() {
+	var input = document.getElementById("bbox").value;
+    var array = input.split(",");
+	var lng1 = parseFloat(array[0]);
+    var lat1 = parseFloat(array[1]);
+    var lng2 = parseFloat(array[2]);
+    var lat2 = parseFloat(array[3]);
+    var bounds = [[lng1, lat1], [lng2, lat2]];
+
+	var url = "https://api.riscognition.io/hotspots?limit=0&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc&bbox=" + bounds;
+
+	map.addSource('hotspotsbbox', {
+		type: 'geojson',
+		data: url,
+		cluster: true,
+		clusterMaxZoom: 14,
+		clusterRadius: 40
+	});
+	map.addLayer({
+		id: 'clusters',
+		type: 'circle',
+		source: 'hotspotsbbox',
+		filter: ['has', 'point_count'],
+		paint: {
+			'circle-radius': [
+				'step',
+				['get', 'point_count'],
+				10,
+				5,
+				15,
+				60,
+				20
+			],
+			'circle-stroke-width': 1,
+			'circle-color': [
+				'step',
+				['get', 'point_count'],
+				'#DE7615',
+				5,
+				'#DE3815',
+				60,
+				'#88200A'
+			],
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.addLayer({
+		id: 'unclustered-point-bbox',
+		type: 'circle',
+		source: 'hotspotsbbox',
+		filter: ['!', ['has', 'point_count']],
+		layout: {'visibility': 'visible'},
+		paint: {
+			'circle-color': '#FFC300',
+			'circle-radius': 5,
+			'circle-stroke-width': 1,
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.on('click', 'clusters', function (e) {
+		var features = map.queryRenderedFeatures(e.point, {
+			layers: ['clusters']
+		});
+		var clusterId = features[0].properties.cluster_id;
+		map.getSource('hotspotsbbox').getClusterExpansionZoom(
+			clusterId, function (err, zoom) {
+				if (err) return;
+
+				map.easeTo({
+					center: features[0].geometry.coordinates,
+					zoom:zoom
+				});
+			}
+		);
+	});
+	map.on('click', 'unclustered-point-bbox', function (e) {
+		map.easeTo({
+			center: e.features[0].geometry.coordinates
+		});
+		var coordinates = e.features[0].geometry.coordinates.slice();
+		var country = e.features[0].properties['country_name'];
+		var region = e.features[0].properties['region_name'];
+		var clc = e.features[0].properties['clc_label'];
+		var acquired = toDate(e.features[0].properties['acquired']);
+		var frp = e.features[0].properties['frp'];
+		var satellite = e.features[0].properties['satellite'] + ' ' + e.features[0].properties['sensor'];
+		var confidence = e.features[0].properties['confidence'];
+		var accuracy = e.features[0].properties['accuracy'];
+		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+		}
+
+		new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML('<strong>Country: </strong>' + country +
+			'<br><strong>Region: </strong>' + region +
+			'<br><strong>Landcover: </strong>' + clc +
+			'<br><strong>Acquired: </strong>' + acquired +
+			'<br><strong>Fire Radiative Power: </strong>' + frp +
+			'<br><strong>Satellite & sensor: </strong>' + satellite +
+			'<br><strong>Confidence: </strong>' + confidence +
+			'<br><strong>Accuracy: </strong>' + accuracy)
+			.addTo(map);
+	});
+	map.on('mouseenter', 'clusters', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseenter', 'unclustered-point-bbox', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseleave', 'clusters', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	map.on('mouseleave', 'unclustered-point-bbox', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	document.getElementById('delete').style.display = 'block';
+}
+
+// bbox hotspot request - bbox draw
+function loadHotspots2() {
+	var bounds = [[minlng,minlat],[maxlng,maxlat]];
+	var url = "https://api.riscognition.io/hotspots?limit=0&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc&bbox=" + bounds;
+	map.fitBounds(bounds, {padding: 50});
+
+	map.addSource('bboxRect', {
+		type: 'geojson',
+		data: {
+			type: 'Feature',
+			properties: {},
+			geometry: {
+				type: 'Polygon',
+				coordinates: [
+					[
+						[minlng, minlat],
+						[maxlng, minlat],
+						[maxlng, maxlat],
+						[minlng, maxlat],
+						[minlng, minlat]
+					]
+				]
+			}
+		}
+	});
+	map.addLayer({
+		id: 'bboxzoom',
+		type: 'line',
+		source: 'bboxRect',
+		paint: {
+			'line-color': 'red',
+			'line-width': 3
+		}
+	});
+
+	map.addSource('hotspotsbbox', {
+		type: 'geojson',
+		data: url,
+		cluster: true,
+		clusterMaxZoom: 14,
+		clusterRadius: 40
+	});
+	map.addLayer({
+		id: 'clusters',
+		type: 'circle',
+		source: 'hotspotsbbox',
+		filter: ['has', 'point_count'],
+		paint: {
+			'circle-radius': [
+				'step',
+				['get', 'point_count'],
+				10,
+				5,
+				15,
+				60,
+				20
+			],
+			'circle-stroke-width': 1,
+			'circle-color': [
+				'step',
+				['get', 'point_count'],
+				'#DE7615',
+				5,
+				'#DE3815',
+				60,
+				'#88200A'
+			],
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.addLayer({
+		id: 'unclustered-point-bbox',
+		type: 'circle',
+		source: 'hotspotsbbox',
+		filter: ['!', ['has', 'point_count']],
+		layout: {'visibility': 'visible'},
+		paint: {
+			'circle-color': '#FFC300',
+			'circle-radius': 5,
+			'circle-stroke-width': 1,
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.on('click', 'clusters', function (e) {
+		var features = map.queryRenderedFeatures(e.point, {
+			layers: ['clusters']
+		});
+		var clusterId = features[0].properties.cluster_id;
+		map.getSource('hotspotsbbox').getClusterExpansionZoom(
+			clusterId, function (err, zoom) {
+				if (err) return;
+
+				map.easeTo({
+					center: features[0].geometry.coordinates,
+					zoom:zoom
+				});
+			}
+		);
+	});
+	map.on('click', 'unclustered-point-bbox', function (e) {
+		map.easeTo({
+			center: e.features[0].geometry.coordinates
+		});
+		var coordinates = e.features[0].geometry.coordinates.slice();
+		var country = e.features[0].properties['country_name'];
+		var region = e.features[0].properties['region_name'];
+		var clc = e.features[0].properties['clc_label'];
+		var acquired = toDate(e.features[0].properties['acquired']);
+		var frp = e.features[0].properties['frp'];
+		var satellite = e.features[0].properties['satellite'] + ' ' + e.features[0].properties['sensor'];
+		var confidence = e.features[0].properties['confidence'];
+		var accuracy = e.features[0].properties['accuracy'];
+		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+		}
+
+		new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML('<strong>Country: </strong>' + country +
+			'<br><strong>Region: </strong>' + region +
+			'<br><strong>Landcover: </strong>' + clc +
+			'<br><strong>Acquired: </strong>' + acquired +
+			'<br><strong>Fire Radiative Power: </strong>' + frp +
+			'<br><strong>Satellite & sensor: </strong>' + satellite +
+			'<br><strong>Confidence: </strong>' + confidence +
+			'<br><strong>Accuracy: </strong>' + accuracy)
+			.addTo(map);
+	});
+	map.on('mouseenter', 'clusters', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseenter', 'unclustered-point-bbox', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseleave', 'clusters', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	map.on('mouseleave', 'unclustered-point-bbox', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	document.getElementById('delete').style.display = 'block';
+}
+
+// delete bbox hotspots
+function deleteHotspots() {
+	document.getElementById('delete').style.display = "none";
+	map.removeLayer('clusters');
+	map.removeLayer('clusters-filter');
+	map.removeLayer('unclustered-point-bbox');
+	map.removeLayer('unclustered-point-filter');
+	map.removeSource('hotspotsbbox');
+	map.removeSource('hotspotsfilter');
+}
+
+// zoom
+var nav = new mapboxgl.NavigationControl();
+map.addControl(nav, 'top-left');
+
+// geocoder
+var geocoder = new MapboxGeocoder({
+	accessToken: mapboxgl.accessToken,
+	mapboxgl: mapboxgl,
+});
+map.addControl(geocoder, 'bottom-right');
+
+// scale bar
+var scale = new mapboxgl.ScaleControl();
+map.addControl(scale, 'bottom-right');
+
+// bbox request
+function openBboxForm() {
+    document.getElementById("bboxForm").style.display = "block";
+}
+
+function coordinates() {
+	var input = document.getElementById("bbox").value;
+    var array = input.split(",");
+	var lng1 = parseFloat(array[0]);
+    var lat1 = parseFloat(array[1]);
+    var lng2 = parseFloat(array[2]);
+    var lat2 = parseFloat(array[3]);
+    var bounds = [[lng1, lat1], [lng2, lat2]];
+	map.fitBounds(bounds, {padding: 50});
+
+	map.addSource('bboxRect', {
+		type: 'geojson',
+		data: {
+			type: 'Feature',
+			properties: {},
+			geometry: {
+				type: 'Polygon',
+				coordinates: [
+					[
+						[lng1, lat1],
+						[lng2, lat1],
+						[lng2, lat2],
+						[lng1, lat2],
+						[lng1, lat1]
+					]
+				]
+			}
+		}
+	});
+	map.addLayer({
+		id: 'bboxzoom',
+		type: 'line',
+		source: 'bboxRect',
+		paint: {
+			'line-color': 'red',
+			'line-width': 3
+		}
+	});
+}
+
+function closeBboxForm() {
+    document.getElementById("bboxForm").style.display = "none";
+	map.removeLayer('bboxzoom');
+	map.removeSource('bboxRect');
+}
+
+// draw polygon
+function openDrawForm() {
+	document.getElementById("drawForm").style.display = "block";
+}
+
+var draw
+var drawBox
+var minlat
+var maxlat
+var minlng
+var maxlng
+
+function drawPolygon() {
+	draw = new MapboxDraw({
+		displayControlsDefault: false,
+		defaultMode: 'draw_polygon',
+		id: 'drawing'
+	});
+	map.addControl(draw);
+	map.on('draw.create', openDrawForm);
+	map.on('draw.create', updateBbox);
+
+	function updateBbox(e) {
+		var drawnBbox = draw.getAll();
+		var answer = document.getElementById('drawnBbox');
+		var bboxCoords = drawnBbox.features[0].geometry.coordinates;
+		var lats = [];  var lngs = [];
+		for (var i = 0; i < bboxCoords[0].length; i++)  {
+			lats.push(bboxCoords[0][i][1]);
+			lngs.push(bboxCoords[0][i][0]);
+		}
+		minlat = Math.min.apply(null, lats),
+		maxlat = Math.max.apply(null, lats);
+		minlng = Math.min.apply(null, lngs),
+		maxlng = Math.max.apply(null, lngs);
+
+		drawBox = [[minlng,minlat],[maxlng,maxlat]];
+		answer.innerHTML = drawBox;
+	}
+}
+
+function copyBbox() {
+	var copyCoords = document.getElementById('drawnBbox');
+	copyCoords.select();
+	document.execCommand('copy');
+}
+
+function closeDrawForm() {
+    document.getElementById("drawForm").style.display = "none";
+	map.removeControl(draw);
+	map.removeLayer('bboxzoom');
+	map.removeSource('bboxRect');
+}
+
+// GeoJSON request
+function openJsonForm() {
+    document.getElementById("jsonForm").style.display = "block";
+}
+
+function showJson() {
+	var input = document.getElementById("geojson").value;
+	input = JSON.parse(input);
+	map.addSource('geojson',{
+		type: 'geojson',
+		data: input
+	});
+	map.addLayer({
+		id: 'polygon',
+		type: 'fill',
+		source: 'geojson',
+		layout: {},
+		paint: {
+			'fill-color': 'blue',
+			'fill-opacity': 0.3
+		},
+		filter: ['==', '$type', 'Polygon']
+	});
+	map.addLayer({
+		id: 'outline',
+		type: 'line',
+		source: 'geojson',
+		layout: {},
+		paint: {
+			'line-color': 'blue',
+			'line-width': 2
+		},
+		filter: ['==', '$type', 'Polygon']
+	});
+	map.addLayer({
+		id: 'point',
+		type: 'circle',
+		source: 'geojson',
+		layout: {},
+		paint: {
+			'circle-radius': 6,
+			'circle-color': 'blue'
+		},
+		filter: ['==', '$type', 'Point']
+	});
+	map.addLayer({
+		id: 'line',
+		type: 'line',
+		source: 'geojson',
+		layout: {},
+		paint: {
+			'line-width': 3,
+			'line-color': 'blue'
+		},
+		filter: ['==', '$type', 'LineString']
+	});
+
+	var jsonCoords = input.features[0].geometry.coordinates;
+	var lats = [];  var lngs = [];
+	//console.log(map.getLayer('polygon'));
+	//for (map.getLayer('polygon')) {
+		for (var i = 0; i < jsonCoords[0].length; i++)  {
+			lats.push(jsonCoords[0][i][1]);
+			lngs.push(jsonCoords[0][i][0]);
+		}
+	//}
+	// for (map.getLayer('line')) {
+	// 	for (var i = 0; i < jsonCoords[0].length; i++)  {
+	// 		lats.push(jsonCoords[i][1]);
+	// 		lngs.push(jsonCoords[i][0]);	
+	// 	}
+	// }
+	// for (map.getLayer('point')) {
+	// 	for (var i = 0; i < jsonCoords[0].length; i++)  {
+	// 		lats.push(jsonCoords[0][i][1]);
+	// 		lngs.push(jsonCoords[0][i][0]);	
+	// 	}
+	// }
+	minlat = Math.min.apply(null, lats),
+	maxlat = Math.max.apply(null, lats);
+	minlng = Math.min.apply(null, lngs),
+	maxlng = Math.max.apply(null, lngs);
+
+	bounds = [[minlng,minlat],[maxlng,maxlat]];
+	map.fitBounds(bounds, {padding: 50});
+}
+
+function closeJsonForm() {
+    document.getElementById("jsonForm").style.display = "none";
+	map.removeLayer('polygon');
+	map.removeLayer('outline');
+	map.removeLayer('point');
+	map.removeLayer('line');
+	map.removeSource('geojson');
+}
+
+// GeoJSON draw
+function openJsonDrawForm() {
+    document.getElementById("jsonDrawForm").style.display = "block";
+}
+
+function drawJson() {
+	document.getElementById('drawPoint').style.display = "inline";
+	document.getElementById('drawLine').style.display = "inline";
+	document.getElementById('drawPolygonJson').style.display = "inline";
+}
+
+function drawPoint() {
+	draw2 = new MapboxDraw({
+		displayControlsDefault: false,
+		defaultMode: 'draw_point',
+		id: 'drawing'
+	});
+	map.addControl(draw2);
+	map.on('draw.create', openJsonDrawForm);
+	map.on('draw.create', getGeojson);
+	function getGeojson() {
+		var drawnGeojson = draw2.getAll();
+		var stringJson = JSON.stringify(drawnGeojson);
+		var answer = document.getElementById('drawnGeojson');
+		var GeoJson = stringJson;
+		answer.innerHTML = GeoJson;
+	}
+}
+function drawLine() {
+	draw2 = new MapboxDraw({
+		displayControlsDefault: false,
+		defaultMode: 'draw_line_string',
+		id: 'drawing'
+	});
+	map.addControl(draw2);
+	map.on('draw.create', openJsonDrawForm);
+	map.on('draw.create', getGeojson);
+	function getGeojson() {
+		var drawnGeojson = draw2.getAll();
+		var stringJson = JSON.stringify(drawnGeojson);
+		var answer = document.getElementById('drawnGeojson');
+		var GeoJson = stringJson;
+		answer.innerHTML = GeoJson;
+	}
+}
+function drawPolygonJson() {
+	draw2 = new MapboxDraw({
+		displayControlsDefault: false,
+		defaultMode: 'draw_polygon',
+		id: 'drawing'
+	});
+	map.addControl(draw2);
+	map.on('draw.create', openJsonDrawForm);
+	map.on('draw.create', getGeojson);
+	function getGeojson() {
+		var drawnGeojson = draw2.getAll();
+		var stringJson = JSON.stringify(drawnGeojson);
+		var answer = document.getElementById('drawnGeojson');
+		var GeoJson = stringJson;
+		answer.innerHTML = GeoJson;
+	}
+}
+
+function copyJson() {
+	var copyCoords = document.getElementById('drawnGeojson');
+	copyCoords.select();
+	document.execCommand('copy');
+}
+
+function closeJsonDrawForm() {
+    document.getElementById("jsonDrawForm").style.display = "none";
+	map.removeControl(draw2);
+	document.getElementById('drawPoint').style.display = "none";
+	document.getElementById('drawLine').style.display = "none";
+	document.getElementById('drawPolygonJson').style.display = "none";
+}
+
+// filtered request
+function openFilterForm() {
+	document.getElementById('filterForm').style.display = "block";
+	console.log(isocodes);
+	var options = '';
+	for(var i = 0; i < isocodes.length; i++) {
+  		options += '<option value="' + isocodes[i]["name"] + '" />';
+}
+document.getElementById('countries').innerHTML = options;
+}
+
+//var ISOcodes; 
+const url = 'https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/slim-2/slim-2.json'
+async function getJSON() {
+	var ISOcodes;
+	var response = await fetch(url);
+	ISOcodes = await response.json();
+		// .then(response => response.json())
+		// .then(data => ISOcodes = data)
+		// .then(() => callback(ISOcodes));
+	//.then(() => console.log(ISOcodes));
+//console.log(ISOcodes);
+}
+getJSON()
+
+function findWithAttr(array, attr, value) {
+	for(var i = 0; i < array.length; i += 1) {
+		if(array[i][attr] === value) {
+			return i;
+		}
+	}
+	return -1;
+	var ID = findWithAttr(obj, 'name', country);
+	var entry = obj[ID];
+	var code = entry['alpha-2'];
+}
+
+	// function getKeyByValue(object, value) {
+  	// 	return Object.keys(object).find(key => object[key] === value);
+	// }
+
+
+	// let search = document.getElementById("country");
+	// window.search = search;
+	// search.id = "search";
+	// search.autocomplete = "off";
+	// search.setAttribute("onkeyup", "searchDB(this);");
+
+	// function searchDB(elem) {
+	// 	let selector = document.getElementById("selector");
+	// 	if (elem.value.trim() !== "") {
+    //     	elem.classList.add("dropdown");
+    //     	if (selector == null) {
+	// 			selector = document.createElement("div");
+	// 			selector.id = "selector";
+	// 			elem.parentNode.appendChild(selector);
+	// 			selector.style.left = elem.getBoundingClientRect().left + "px";
+	// 			selector.style.top = elem.getBoundingClientRect().bottom + "px";
+	// 			selector.style.width = elem.getBoundingClientRect().width + "px";
+    //     	}
+	// 		selector.innerHTML = "";
+	// 		let empty = true;
+	// 		for (let item in isocodes) {
+	// 			let str = item["name"];//[item.toLowerCase(), isocodes[item][0].toLowerCase()].join();
+	// 			if (str.indexOf(elem.value) !== -1) {
+	// 				let opt = document.createElement("button");
+	// 				opt.setAttribute("onclick","insertValue(this);")
+	// 				opt.innerHTML = isocodes[item][0];
+	// 				selector.appendChild(opt);
+	// 				empty = false;
+	// 			}
+	// 		}
+	// 		if (empty == true) {
+	// 			let opt = document.createElement("button");
+	// 			opt.disabled = true;
+	// 			opt.innerHTML = "No results";
+	// 			selector.appendChild(opt);
+	// 		}
+	// 	}
+	// 	else {
+	// 		if (selector !== null) {
+    //         	selector.parentNode.removeChild(selector);
+    //         	elem.classList.remove("dropdown");
+    //     	}
+	// 	}
+	// }
+	// function insertValue(elem) {
+	// 	window.search.classList.remove("dropdown");
+	// 	window.search.value = elem.innerHTML;
+	// 	elem.parentNode.parentNode.removeChild(elem.parentNode);
+	// 	console.log(elem.innerHTML);
+	// 	console.log(db);
+	// 	console.log(getKeyByValue(db, "Andorra"));
+	// }
+
+// var countriesFilter = new Array();
+// var options = '';
+
+
+function unixDateStamp(date) {
+	var unix = new Date(date).getTime()/1000;
+	return(unix)
+}
+function loadFilter() {
+	var count = document.getElementById("count").value;
+	var country = document.getElementById("country").value;
+	var startDate = document.getElementById("startDate").value;
+	if (startDate){
+		startDate = unixDateStamp(startDate);
+	};
+	var endDate = document.getElementById("endDate").value;
+	if (endDate){
+		endDate = unixDateStamp(endDate);
+	};
+	var frp = document.getElementById("frp").value;
+	if (frp){
+		frp = parseInt(frp);
+	}
+	var sensor = document.getElementById("sensor").value;
+
+	// console.log(country)
+	// console.log(typeof(country))
+	// console.log(typeof(countries.Austria))
+	// console.log(countries.Austria)
+	// console.log(countries.country)
+	//console.log(code)
+
+	var url = "https://api.riscognition.io/hotspots?" + "limit=" + count + "&country=" + country + "&start=" + startDate + "&end=" + endDate + "&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc";
+	
+	map.addSource('hotspotsfilter', {
+		type: 'geojson',
+		data: url,
+		cluster: true,
+		clusterMaxZoom: 14,
+		clusterRadius: 40
+	});
+	map.addLayer({
+		id: 'clusters-filter',
+		type: 'circle',
+		source: 'hotspotsfilter',
+		filter: ['has', 'point_count'],
+		paint: {
+			'circle-radius': [
+				'step',
+				['get', 'point_count'],
+				10,
+				5,
+				15,
+				60,
+				20
+			],
+			'circle-stroke-width': 1,
+			'circle-color': [
+				'step',
+				['get', 'point_count'],
+				'#DE7615',
+				5,
+				'#DE3815',
+				60,
+				'#88200A'
+			],
+			'circle-stroke-color': 'white'
+		}
+	});
+	map.addLayer({
+		id: 'unclustered-point-filter',
+		type: 'circle',
+		source: 'hotspotsfilter',
+		filter: ['!', ['has', 'point_count']],
+		layout: {'visibility': 'visible'},
+		paint: {
+			'circle-color': '#FFC300',
+			'circle-radius': 5,
+			'circle-stroke-width': 1,
+			'circle-stroke-color': 'white'
+		}
+	});
+	if (frp){
+		map.setFilter('unclustered-point-filter', ['>',['get', 'frp'],frp]);
+		map.setFilter('clusters-filter', ['>',['get', 'frp'],frp]);
+	}
+	if (sensor){
+		map.setFilter('unclustered-point-filter', ['===', ['get', 'sensor'],sensor]);
+		map.setFilter('clusters-filter', ['===', ['get', 'sensor'],sensor]);
+	}
+	map.on('click', 'clusters-filter', function (e) {
+		var features = map.queryRenderedFeatures(e.point, {
+			layers: ['clusters-filter']
+		});
+		var clusterId = features[0].properties.cluster_id;
+		map.getSource('hotspotsfilter').getClusterExpansionZoom(
+			clusterId, function (err, zoom) {
+				if (err) return;
+
+				map.easeTo({
+					center: features[0].geometry.coordinates,
+					zoom:zoom
+				});
+			}
+		);
+	});
+	map.on('click', 'unclustered-point-filter', function (e) {
+		map.easeTo({
+			center: e.features[0].geometry.coordinates
+		});
+		var coordinates = e.features[0].geometry.coordinates.slice();
+		var country = e.features[0].properties['country_name'];
+		var region = e.features[0].properties['region_name'];
+		var clc = e.features[0].properties['clc_label'];
+		var acquired = toDate(e.features[0].properties['acquired']);
+		var frp = e.features[0].properties['frp'];
+		var satellite = e.features[0].properties['satellite'] + ' ' + e.features[0].properties['sensor'];
+		var confidence = e.features[0].properties['confidence'];
+		var accuracy = e.features[0].properties['accuracy'];
+		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+		}
+
+		new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML('<strong>Country: </strong>' + country +
+			'<br><strong>Region: </strong>' + region +
+			'<br><strong>Landcover: </strong>' + clc +
+			'<br><strong>Acquired: </strong>' + acquired +
+			'<br><strong>Fire Radiative Power: </strong>' + frp +
+			'<br><strong>Satellite & sensor: </strong>' + satellite +
+			'<br><strong>Confidence: </strong>' + confidence +
+			'<br><strong>Accuracy: </strong>' + accuracy)
+			.addTo(map);
+	});
+	map.on('mouseenter', 'clusters.filter', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseenter', 'unclustered-point-filter', function () {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+	map.on('mouseleave', 'clusters-filter', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	map.on('mouseleave', 'unclustered-point-filter', function () {
+		map.getCanvas().style.cursor = '';
+	});
+	document.getElementById('delete').style.display = 'block';
+}
+
+function closeFilter() {
+	document.getElementById('filterForm').style.display = "none";
+	map.removeSource('hotspotsfilter');
+}
+
+</script>
+
+</body>
+</html>
