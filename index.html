@@ -83,7 +83,10 @@ body { margin: 0; padding: 0; }
 <div class="filterForm" id="filterForm">
 	<form action="/action_page.php" class="filter-container">
 		<p>Filter hotspot request</p>
-		<input type="text" id="country" name="country" list="countries" onfocus="this.value=''" placeholder="Select country"/>
+		<select name="countries" id="countryselect">
+			
+		</select>
+		<!-- <input type="text" id="country" name="country" list="countries" onfocus="this.value=''" placeholder="Select country"/> -->
 		<!-- <datalist id="countries" class="datalist"></datalist> -->
 		<input type="text" id="startDate" name="startDate" onfocus="this.value=''" placeholder="Select start date"/>
 		<input type="text" id="endDate" name="endDate" onfocus="this.value=''" placeholder="Select end date"/>
@@ -875,12 +878,12 @@ function closeJsonDrawForm() {
 // filtered request
 function openFilterForm() {
 	document.getElementById('filterForm').style.display = "block";
-	console.log(isocodes);
+
 	var options = '';
 	for(var i = 0; i < isocodes.length; i++) {
-  		options += '<option value="' + isocodes[i]["name"] + '" />';
+  		options += '<option value="' + isocodes[i]["alpha-2"] + '" label="' + isocodes[i]["name"] +'" />';
 }
-document.getElementById('countries').innerHTML = options;
+document.getElementById('countryselect').innerHTML = options;
 }
 
 //var ISOcodes; 
@@ -977,7 +980,8 @@ function unixDateStamp(date) {
 }
 function loadFilter() {
 	var count = document.getElementById("count").value;
-	var country = document.getElementById("country").value;
+	var country = document.getElementById("countryselect").value;
+
 	var startDate = document.getElementById("startDate").value;
 	if (startDate){
 		startDate = unixDateStamp(startDate);
@@ -992,12 +996,6 @@ function loadFilter() {
 	}
 	var sensor = document.getElementById("sensor").value;
 
-	// console.log(country)
-	// console.log(typeof(country))
-	// console.log(typeof(countries.Austria))
-	// console.log(countries.Austria)
-	// console.log(countries.country)
-	//console.log(code)
 
 	var url = "https://api.riscognition.io/hotspots?" + "limit=" + count + "&country=" + country + "&start=" + startDate + "&end=" + endDate + "&key=anVsaWEuc2FnZXJ0QGdtYWlsLmNvbQ==.7IbGYrxKoBrkIfueHSfc";
 	

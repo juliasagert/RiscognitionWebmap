@@ -18,6 +18,18 @@
 .filter-button:hover {
     background-color: #eee9e9;
 }
+
+select {
+    width: 100%;
+    margin: 5px 0 10px 0;
+    border: solid 1px #493d3d;
+    background: #f1f1f1;
+    font-family: Calibri Light, sans-serif;
+    font-size: 13px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
 p {
     font-family: Calibri Light, sans-serif;
     font-weight: bold;
