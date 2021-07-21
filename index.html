@@ -912,7 +912,7 @@ function openFilterForm() {
 	document.getElementById('filterForm').style.display = "block";
 
 	var options = '';
-	options+= '<option value="" label="Select Country"/>'
+	options+= '<option value="" label="Select country"/>'
 	for(var i = 0; i < isocodes.length; i++) {
   		options += '<option value="' + isocodes[i]["alpha-2"] + '" label="' + isocodes[i]["name"] +'" />';
 	}
