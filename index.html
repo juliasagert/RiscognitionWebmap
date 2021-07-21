@@ -12,9 +12,9 @@
 <link rel="stylesheet" href="css/popup.css">
 <link rel="stylesheet" href="css/menu.css">
 <link rel="stylesheet" href="css/wms.css">
+<link rel="stylesheet" href="css/grid.css">
 <link rel="stylesheet" href="css/geojson.css">
 <link rel="stylesheet" href="css/filter.css">
-<link rel="stylesheet" href="css/slider.css">
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.8/css/all.css" rel="stylesheet">
 <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.2/mapbox-gl-draw.css" type="text/css">
 
@@ -36,6 +36,7 @@ body { margin: 0; padding: 0; }
 <body>
 <nav id="menu"></nav>
 <nav id="wms"></nav>
+<nav id="grid"></nav>
 <div id="map"></div>
 <div class="title">
 	<h1>Hotspots</h1>
@@ -84,10 +85,7 @@ body { margin: 0; padding: 0; }
 	<form action="/action_page.php" class="filter-container">
 		<p>Filter hotspot request</p>
 		<select name="countries" id="countryselect">
-			
 		</select>
-		<!-- <input type="text" id="country" name="country" list="countries" onfocus="this.value=''" placeholder="Select country"/> -->
-		<!-- <datalist id="countries" class="datalist"></datalist> -->
 		<input type="text" id="startDate" name="startDate" onfocus="this.value=''" placeholder="Select start date"/>
 		<input type="text" id="endDate" name="endDate" onfocus="this.value=''" placeholder="Select end date"/>
 		<input type="text" id="count" name="count" onfocus="this.value=''" placeholder="Choose limit"/>
@@ -106,6 +104,24 @@ container: 'map',
 style: 'mapbox://styles/mapbox/streets-v11',
 center: [40, 40],
 zoom: 2,
+});
+
+// Sentinel grid
+map.on('load', function(){
+	map.addSource('sentinelGrid', {
+		type: 'geojson',
+		data: '/sentinel2-grid.geojson'
+	});
+	map.addLayer({
+		id: 'Sentinel grid',
+		type: 'fill',
+		source: 'sentinelGrid',
+		layout: {'visibility': 'none'},
+		paint: {
+			'fill-color': 'red',
+			'fill-opacity': 0.15
+		}
+	});
 });
 
 // add Copernicus forest WMS
@@ -303,6 +319,38 @@ map.on('idle', function() {
 					}
 				};
 				var layers = document.getElementById('wms');
+				layers.appendChild(link);
+			}
+		}
+	}
+});
+
+// layer control Sentinel grid
+map.on('idle', function() {
+	if (map.getLayer('Sentinel grid')) {
+		var toggleableLayerIds = ['Sentinel grid'];
+		for (var i = 0; i < toggleableLayerIds.length; i++) {
+			var id = toggleableLayerIds[i];
+			if (!document.getElementById(id)) {
+				var link = document.createElement('a');
+				link.id = id;
+				link.href = '#';
+				link.textContent = id;
+				link.className = 'active';
+				link.onclick = function(e) {
+					var clickedLayer = this.textContent;
+					e.preventDefault();
+					e.stopPropagation();
+					var visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+					if (visibility === 'visible') {
+						map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+						this.className = '';
+					} else {
+						this.className = 'active';
+						map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+					}
+				};
+				var layers = document.getElementById('grid');
 				layers.appendChild(link);
 			}
 		}
