@@ -122,6 +122,20 @@ map.on('load', function(){
 			'fill-opacity': 0.15
 		}
 	});
+	map.addLayer({
+		id: 'gridLabels',
+		type: 'symbol',
+		source: 'sentinelGrid',
+		minzoom: 5.5,
+		layout: {
+			'text-field': ['get', 'Name'],
+			'text-size': 10,
+			'visibility': 'none'
+		},
+		paint: {
+			'text-color': 'red'
+		}
+	});
 });
 
 // add Copernicus forest WMS
@@ -345,9 +359,11 @@ map.on('idle', function() {
 					if (visibility === 'visible') {
 						map.setLayoutProperty(clickedLayer, 'visibility', 'none');
 						this.className = '';
+						map.setLayoutProperty('gridLabels', 'visibility', 'none');
 					} else {
 						this.className = 'active';
 						map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+						map.setLayoutProperty('gridLabels', 'visibility', 'visible');
 					}
 				};
 				var layers = document.getElementById('grid');
